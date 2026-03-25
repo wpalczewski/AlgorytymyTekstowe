@@ -1,0 +1,40 @@
+Information we collect when you interact with Facebook:
+
+Site activity information. We keep track of some of the actions you take on Facebook, such as adding connections (including joining a group or adding a friend), creating a photo album, sending a gift, poking another user, indicating you “like” a post, attending an event, or connecting with an application. In some cases you are also taking an action when you provide information or content to us. For example, if you share a video, in addition to storing the actual content you uploaded, we might log the fact that you shared it.
+
+Access Device and Browser Information. When you access Facebook from a computer, mobile phone, or other device, we may collect information from that device about your browser type, location, and IP address, as well as the pages you visit.
+
+Cookie Information. We use "cookies" (small pieces of data we store for an extended period of time on your computer, mobile phone, or other device) to make Facebook easier to use, to make our advertising better, and to protect both you and Facebook. For example, we use them to store your login ID (but never your password) to make it easier for you to login whenever you come back to Facebook. We also use them to confirm that you are logged into Facebook, and to know when you are interacting with Facebook Platform applications and websites, our widgets and Share buttons, and our advertisements. You can remove or block cookies using the settings in your browser, but in some cases that may impact your ability to use Facebook.
+
+Information we receive from third parties:
+
+Facebook Platform. We do not own or operate the applications or websites that you use through Facebook Platform (such as games and utilities). Whenever you connect with a Platform application or website, we will receive information from them, including information about actions you take. In some cases, in order to personalize the process of connecting, we may receive a limited amount of information even before you connect with the application or website.
+
+Information from other websites. We may institute programs with advertising partners and other websites in which they share information with us:
+ 
+
+We may ask advertisers to tell us how our users responded to the ads we showed them (and for comparison purposes, how other users who didn’t see the ads acted on their site). This data sharing, commonly known as “conversion tracking,” helps us measure our advertising effectiveness and improve the quality of the advertisements you see.
+We may receive information about whether or not you’ve seen or interacted with certain ads on other sites in order to measure the effectiveness of those ads.
+
+
+If in any of these cases we receive data that we do not already have, we will “anonymize” it within 180 days, meaning we will stop associating the information with any particular user. If we institute these programs, we will only use the information in the ways we explain in the “How We Use Your Information” section below.
+
+Information from other users. We may collect information about you from other Facebook users, such as when a friend tags you in a photo, video, or place, provides friend details, or indicates a relationship with you.
+
+3. Sharing information on Facebook.
+
+This section explains how your privacy settings work, and how your information is shared on Facebook.  You should always consider your privacy settingsbefore sharing information on Facebook.
+
+Name and Profile Picture.  Facebook is designed to make it easy for you to find and connect with others.  For this reason, your name and profile picture do not have privacy settings.  If you are uncomfortable with sharing your profile picture, you should delete it (or not add one).  You can also control who can find you when searching on Facebook or on public search engines using the Applications and Websites privacy setting.
+
+
+Contact Information. Your contact information settings control (available when customizing your privacy settings) who can contact you on Facebook, and who can see your contact information such as your email and phone number(s).  Remember that none of this information is required except for your email address, and you do not have to share your email address with anyone.
+
+
+Personal Information.  Your personal information settings control who can see your personal information, such as your religious and political views, if you choose to add them.  We recommend that you share this information using the friends of friends setting.
+
+Posts by Me.  You can select a privacy setting for every post you make using the publisher on our site.  Whether you are uploading a photo or posting a status update, you can control exactly who can see it at the time you create it.  Whenever you share something look for the lock icon.  Clicking on the lock will bring up a menu that lets you choose who will be able to see your post.  If you decide not to select your setting at the time you post the content, your content will be shared consistent with your Posts by Me default privacy 
+
+(available when customizing your privacy settings).
+
+Gender and Birth Date.  In addition to name and email address, we require you to provide your gender and birth date during the registration process.  We ask for your date of birth to verify that you are 13 or older, and so that we can better limit your access to content and advertisements that are not age appropriate.  Because your date of birth and gender are required, you cannot delete them.  You can, however, edit your profile to hide all (or part) of such fields from other users.
