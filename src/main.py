@@ -1,93 +1,93 @@
 import difflib
 import spacy
 
-# 1. KONFIGURACJA: Słowa, które drastycznie zmieniają sens prawny
-# Dodanie lub usunięcie tych słów skutkuje ogromną "karą" punktową
+# 1. CONFIGURATION: English legal "power words"
+# These words drastically change the meaning of a sentence.
 CRITICAL_WORDS = {
-    'negacje': {'nie', 'żaden', 'nigdy', 'brak', 'zakaz', 'zabraniać'},
-    'obowiązki': {'musi', 'obowiązek', 'zobowiązany', 'powinien', 'winien'},
-    'uprawnienia': {'może', 'prawo', 'uprawniony', 'wolno', 'zezwalać'},
-    'wyjątki': {'chyba', 'zastrzeżenie', 'wyjątek', 'warunek'}
+    'negations': {'not', 'no', 'never', 'none', 'prohibited', 'forbidden', 'neither', 'nor'},
+    'obligations': {'must', 'shall', 'required', 'obligated', 'should', 'mandatory'},
+    'rights': {'may', 'can', 'entitled', 'allowed', 'permit', 'right'},
+    'exceptions': {'unless', 'except', 'provided', 'however', 'subject'}
 }
 
-# Łączymy wszystko w jeden zbiór dla szybkiego wyszukiwania
+# Flatten the dictionary for fast lookup
 ALL_CRITICAL = {word for sublist in CRITICAL_WORDS.values() for word in sublist}
 
-# Ładujemy model NLP dla języka polskiego
+# Load the English NLP model
 try:
-    nlp = spacy.load("pl_core_news_sm")
+    nlp = spacy.load("en_core_web_sm")
 except:
-    print("BŁĄD: Zainstaluj model polski: python -m spacy download pl_core_news_sm")
+    print("ERROR: Please install the English model: python -m spacy download en_core_web_sm")
 
 def preprocess_text(text):
-    """Czyści tekst i zamienia słowa na ich formy podstawowe (lematy)."""
+    """Cleans text and converts words to their base forms (lemmas)."""
     doc = nlp(text.lower())
-    # Wyciągamy lematy, pomijając znaki interpunkcyjne
-    return [token.lemma_ for token in doc if not token.is_punct]
+    # Extract lemmas, ignoring punctuation and whitespace
+    return [token.lemma_ for token in doc if not token.is_punct and not token.is_space]
 
 def calculate_legal_score(base_tokens, new_tokens):
-    """Oblicza podobieństwo z uwzględnieniem wag prawniczych."""
+    """Calculates similarity with legal weighting."""
     matcher = difflib.SequenceMatcher(None, base_tokens, new_tokens)
     visual_similarity = matcher.ratio() * 100
     
     diff = list(difflib.ndiff(base_tokens, new_tokens))
     
-    # Szukamy zmian w słowach krytycznych
+    # Search for changes in critical words
     critical_alerts = []
     penalty = 0
     
     for item in diff:
-        word = item[2:] # słowo po symbolu (+ / - /  )
-        status = item[0] # symbol zmiany
+        word = item[2:] # word after the symbol (+ / - /  )
+        status = item[0] # change status
         
         if word in ALL_CRITICAL:
             if status == '-':
-                critical_alerts.append(f"USUNIĘTO słowo kluczowe: '{word}'")
-                penalty += 35 # Kara za usunięcie np. "nie" lub "może"
+                critical_alerts.append(f"REMOVED critical word: '{word}'")
+                penalty += 35 
             elif status == '+':
-                critical_alerts.append(f"DODANO słowo kluczowe: '{word}'")
-                penalty += 35 # Kara za dodanie ograniczenia
+                critical_alerts.append(f"ADDED critical word: '{word}'")
+                penalty += 35 
                 
-    # Obliczamy końcowy wynik (nie schodzimy poniżej 0)
+    # Calculate final score (clamped at 0)
     legal_similarity = max(0, visual_similarity - penalty)
     
     return visual_similarity, legal_similarity, diff, critical_alerts
 
 def print_report(title, t1, t2):
-    """Wyświetla sformatowany raport z porównania."""
+    """Displays a formatted comparison report."""
     tokens1 = preprocess_text(t1)
     tokens2 = preprocess_text(t2)
     
     vis_sim, leg_sim, diff, alerts = calculate_legal_score(tokens1, tokens2)
     
     print(f"--- {title} ---")
-    print(f"Tekst A: {t1}")
-    print(f"Tekst B: {t2}")
-    print(f"Podobieństwo wizualne (difflib): {vis_sim:.2f}%")
-    print(f"PODOBIEŃSTWO PRAWNICZE: {leg_sim:.2f}%")
+    print(f"Text A: {t1}")
+    print(f"Text B: {t2}")
+    print(f"Visual Similarity (difflib): {vis_sim:.2f}%")
+    print(f"LEGAL SIMILARITY SCORE: {leg_sim:.2f}%")
     
     if alerts:
-        print("🚨 ALERTY PRAWNE:")
+        print("🚨 LEGAL ALERTS:")
         for a in alerts:
             print(f"  - {a}")
     else:
-        print("✅ Brak krytycznych zmian w słownictwie modalnym.")
+        print("✅ No critical changes in modal verbs or negations detected.")
     print("-" * 50 + "\n")
 
-# --- TESTY PROOF OF CONCEPT ---
+# --- PROOF OF CONCEPT TESTS (English) ---
 
-# Test 1: Zmiana przez negację (Krytyczna)
-txt1 = "Najemca jest uprawniony do zmiany zamków."
-txt2 = "Najemca nie jest uprawniony do zmiany zamków."
+# Test 1: Change by negation (Critical)
+txt1 = "The tenant is entitled to change the locks."
+txt2 = "The tenant is NOT entitled to change the locks."
 
-# Test 2: Zmiana techniczna (Mało ważna)
-txt3 = "Lokator zapłaci czynsz przelewem."
-txt4 = "Mieszkaniec ureguluje czynsz przelewem."
+# Test 2: Technical change (Minor)
+txt3 = "The tenant will pay rent via bank transfer."
+txt4 = "The resident shall pay rent through wire transfer."
 
-# Test 3: Zmiana modalna (Z przyzwolenia na obowiązek)
-txt5 = "Właściciel może wypowiedzieć umowę."
-txt6 = "Właściciel musi wypowiedzieć umowę."
+# Test 3: Modal change (Permission vs. Obligation)
+txt5 = "The landlord may terminate the agreement."
+txt6 = "The landlord must terminate the agreement."
 
-print_report("TEST 1: NEGACJA", txt1, txt2)
-print_report("TEST 2: SYNONIMY", txt3, txt4)
-print_report("TEST 3: TRYB ROZKAZUJĄCY", txt5, txt6)
+print_report("TEST 1: NEGATION", txt1, txt2)
+print_report("TEST 2: SYNONYMS", txt3, txt4)
+print_report("TEST 3: MODAL SHIFT", txt5, txt6)
