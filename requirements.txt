@@ -1,0 +1,13 @@
+
+spacy>=3.7.0
+
+PyMuPDF>=1.23.0
+
+python-docx>=1.1.0
+
+pandas>=2.0.0
+
+streamlit>=1.30.0
+
+pytest>=7.4.0
+black>=23.1.0
