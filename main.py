@@ -1,141 +1,95 @@
-import spacy
-import difflib
 import os
+import sys
+import numpy as np
+import tkinter as tk
+from tkinter import filedialog
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 
-class LegalNLPEngine:
-    def __init__(self, model_name="en_core_web_sm"):
-        try:
-            self.nlp = spacy.load(model_name)
-        except OSError:
-            print(f"ERROR: Model {model_name} not found. Run: python -m spacy download {model_name}")
+sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
+from nlp_engine import NLPEngine
 
-        self.power_words = {
-            'negations': {'not', 'no', 'never', 'none', 'prohibited', 'forbidden', 'neither', 'nor', 'cannot', 'refuse'},
-            'obligations': {'must', 'shall', 'required', 'obligated', 'should', 'mandatory', 'will'},
-            'rights': {'may', 'can', 'entitled', 'allowed', 'permit', 'right', 'could'},
-            'exceptions': {'unless', 'except', 'provided', 'however', 'subject'}
-        }
-        self.all_critical = {word for sublist in self.power_words.values() for word in sublist}
+def select_file(title):
+    root = tk.Tk()
+    root.withdraw()
+    file_path = filedialog.askopenfilename(
+        title=title,
+        initialdir="./data",
+        filetypes=(("Pliki tekstowe", "*.txt"), ("Wszystkie pliki", "*.*"))
+    )
+    root.destroy()
+    return file_path
 
-    def extract_features(self, text):
-        """Wyciąga cechy lingwistyczne, lematy i stronę bierną."""
-        doc = self.nlp(text.lower())
-        features = {
-            'lemmas': [t.lemma_ for t in doc if not t.is_punct and not t.is_space],
-            'passive_voice': [],
-            'critical_found': []
-        }
-        
-        for token in doc:
-            # Wykrywanie strony biernej (Passive Voice)
-            if token.dep_ == "auxpass":
-                features['passive_voice'].append(f"{token.lemma_} {token.head.lemma_}")
-            
-            # Zapamiętujemy słowa krytyczne
-            if token.lemma_ in self.all_critical:
-                features['critical_found'].append(token.lemma_)
-                
-        return features
-
-    def compare_paragraphs(self, p_old, p_new):
-        """Porównuje dwa akapity i zwraca listę alertów oraz wynik."""
-        f_old = self.extract_features(p_old)
-        f_new = self.extract_features(p_new)
-        
-        matcher = difflib.SequenceMatcher(None, f_old['lemmas'], f_new['lemmas'])
-        base_sim = matcher.ratio() * 100
-        
-        alerts = []
-        # 1. Zmiany w słowach krytycznych
-        removed = set(f_old['critical_found']) - set(f_new['critical_found'])
-        added = set(f_new['critical_found']) - set(f_old['critical_found'])
-        
-        for r in removed: alerts.append(f"REMOVED CRITICAL: '{r}'")
-        for a in added: alerts.append(f"ADDED CRITICAL: '{a}'")
-        
-        # 2. Wykrywanie nowej strony biernej
-        new_passive = set(f_new['passive_voice']) - set(f_old['passive_voice'])
-        if new_passive:
-            alerts.append(f"NEW PASSIVE VOICE: {list(new_passive)} (responsibility might be obscured)")
-            
-        # Obliczamy wynik końcowy (kara za każdy alert)
-        final_score = max(0, base_sim - (len(alerts) * 20))
-        return final_score, alerts
-
-def find_best_match(new_lemmas, old_paras_data):
-    """Szuka najbardziej podobnego akapitu w starej wersji dokumentu."""
-    best_score = 0
-    best_idx = -1
-    
-    for idx, old_data in enumerate(old_paras_data):
-        score = difflib.SequenceMatcher(None, old_data['lemmas'], new_lemmas).ratio()
-        if score > best_score:
-            best_score = score
-            best_idx = idx
-            
-    return best_idx, best_score
-
-def load_data(filename):
-    """Wczytuje tekst i dzieli na sensowne akapity."""
-    path = os.path.join("data", filename)
-    if not os.path.exists(path):
-        print(f" File not found: {path}")
+def load_data(path):
+    if not path:
         return []
     with open(path, 'r', encoding='utf-8') as f:
-        # Dzielimy po podwójnym enterze, filtrujemy krótkie śmieci
         return [p.strip() for p in f.read().split('\n\n') if len(p.strip()) > 40]
 
 def main():
-    engine = LegalNLPEngine()
+    engine = NLPEngine()
     
-    # 1. Wczytywanie i Preprocessing
-    print(" Loading and indexing documents...")
-    old_policy = load_data("fb_privacy_policy_2010.txt")
-    new_policy = load_data("fb_privacy_policy_2015.txt")
+    path_old = select_file("Wybierz STARSZĄ wersję polityki (np. tiktok_20.txt)")
+    path_new = select_file("Wybierz NOWSZĄ wersję polityki (np. tiktok_21.txt)")
     
-    if not old_policy or not new_policy:
+    if not path_old or not path_new:
         return
 
-    # Przygotowujemy cechy dla wszystkich starych akapitów raz, żeby było szybciej
-    old_paras_features = [engine.extract_features(p) for p in old_policy]
+    old_policy = load_data(path_old)
+    new_policy = load_data(path_new)
 
-    print(f" Analysis started: 2010 ({len(old_policy)} paras) vs 2015 ({len(new_policy)} paras)")
-    print("=" * 70)
+    vectorizer = TfidfVectorizer(stop_words='english', ngram_range=(1, 2))
+    all_paras = old_policy + new_policy
+    tfidf_matrix = vectorizer.fit_transform(all_paras)
+    
+    old_tfidf = tfidf_matrix[:len(old_policy)]
+    new_tfidf = tfidf_matrix[len(old_policy):]
+    similarity_matrix = cosine_similarity(new_tfidf, old_tfidf)
+
+    print(f"Analiza dokumentów: {os.path.basename(path_new)}")
+    print("=" * 75)
 
     total_alerts = 0
-
     for i, p_new in enumerate(new_policy):
-        new_f = engine.extract_features(p_new)
+        new_f = engine.extract_legal_features(p_new)
+        match_idx = np.argmax(similarity_matrix[i])
+        match_score = similarity_matrix[i][match_idx]
+        risk = engine.calculate_risk_score(new_f)
         
-        # 2. Szukamy "swata" (najlepszego dopasowania)
-        match_idx, match_score = find_best_match(new_f['lemmas'], old_paras_features)
+        print(f"AKAPIT #{i+1}")
+        print(f"WYNIK RYZYKA: {risk}/100")
         
-        print(f" PARAGRAPH 2015 #{i+1}")
-        
-        # Próg podobieństwa: jeśli < 25%, uznajemy to za nową sekcję
-        if match_score > 0.25:
-            p_old = old_policy[match_idx]
-            score, alerts = engine.compare_paragraphs(p_old, p_new)
+        if risk > 40:
+            total_alerts += 1
+            print("IDENTYFIKACJA ZAGROŻEŃ:")
             
-            print(f"    Matched with 2010 Paragraph #{match_idx+1} (Base Similarity: {match_score:.2f})")
-            print(f"    Legal Similarity Score: {score:.2f}%")
+            if new_f.get('privacy_risks'):
+                print(f" - WYKRYTO DANE WRAŻLIWE: {', '.join(set(new_f['privacy_risks']))}")
+                print("   Zagrożenie: Gromadzenie cech fizjologicznych użytkownika.")
             
-            if alerts:
-                total_alerts += len(alerts)
-                for a in alerts:
-                    print(f"   {a}")
-            else:
-                print("   No critical legal changes detected in this section.")
-        else:
-            print("   NEW SECTION DETECTED (No similar paragraph in 2010 version)")
-            print(f"   Critical words in new section: {new_f['critical_found']}")
             if new_f['passive_voice']:
-                print(f"    Passive voice found: {new_f['passive_voice']}")
-        
-        print(f"   [Preview]: {p_new[:100]}...")
-        print("-" * 70)
+                print(f" - STRONA BIERNA: {new_f['passive_voice']}")
+                print("   Zagrożenie: Ukrywanie podmiotu odpowiedzialnego za przetwarzanie danych.")
+            
+            if new_f['exceptions']:
+                print(f" - FURTKI PRAWNE (Wyjątki): {list(set(new_f['exceptions']))}")
+                print("   Zagrożenie: Możliwość ominięcia zasad ochrony prywatności w określonych warunkach.")
 
-    print(f"\nANALYSIS COMPLETE. Total legal alerts: {total_alerts}")
+            if 'may' in new_f['modals_may'] and new_f.get('privacy_risks'):
+                print(" - DOPUSZCZENIE DOSTĘPU: Użycie sformułowania 'may' sugeruje arbitralność w zbieraniu danych.")
+
+        if match_score > 0.3:
+            old_f = engine.extract_legal_features(old_policy[match_idx])
+            ent_alerts = engine.compare_entities(old_f, new_f)
+            print(f"POWIĄZANIE: Dopasowano do akapitu #{match_idx+1} starszej wersji.")
+            for a in ent_alerts: print(f"  ZMIANA DANYCH: {a}")
+        else:
+            print("STATUS: NOWA SEKCJA (Brak odpowiednika w poprzedniej wersji)")
+            
+        print(f"FRAGMENT: {p_new[:100]}...")
+        print("-" * 75)
+
+    print(f"PODSUMOWANIE: Znaleziono {total_alerts} problematycznych sekcji.")
 
 if __name__ == "__main__":
     main()

@@ -1,102 +1,71 @@
 import spacy
-import os
 
 class NLPEngine:
     def __init__(self, model_name="en_core_web_sm"):
         try:
             self.nlp = spacy.load(model_name)
         except OSError:
-            print(f"Model {model_name} not found. Run: python -m spacy download {model_name}")
+            print(f"BŁĄD: Model {model_name} nie znaleziony.")
 
         self.power_words = {
             'NEGATION': ['not', 'never', 'no', 'neither', 'nor', 'none', 'cannot', 'refuse'],
             'MODAL_MUST': ['must', 'shall', 'required', 'obligated', 'mandatory', 'will'],
-            'MODAL_MAY': ['may', 'can', 'entitled', 'allowed', 'permit', 'could']
+            'MODAL_MAY': ['may', 'can', 'entitled', 'allowed', 'permit', 'could'],
+            'EXCEPTIONS': ['unless', 'except', 'provided', 'however', 'subject', 'notwithstanding', 'condition'],
+            'SENSITIVE_DATA' : ['biometric', 'faceprint', 'voiceprint', 'fingerprint', 'location', 'tracking', 'health', 'genetic' ]
         }
 
+    def calculate_readability(self, text):
+        doc = self.nlp(text)
+        sentences = list(doc.sents)
+        words = [t for t in doc if not t.is_punct]
+        if not sentences or not words: return 0
+        
+        avg_sent_len = len(words) / len(sentences)
+        complex_words = [w for w in words if len(w.text) > 9]
+        pct_complex = (len(complex_words) / len(words)) * 100
+        return avg_sent_len + pct_complex
+
     def extract_legal_features(self, text):
-        """Wyciąga cechy lingwistyczne, w tym stronę bierną."""
-        doc = self.nlp(text.lower())
+        doc = self.nlp(text)
         features = {
+            'lemmas': [t.lemma_.lower() for t in doc if not t.is_punct and not t.is_space],
             'negations': [],
             'modals_must': [],
             'modals_may': [],
-            'passive_voice': [] # Wykryte konstrukcje strony biernej
+            'passive_voice': [],
+            'exceptions': [],
+            'privacy_risks': [],
+            'readability': self.calculate_readability(text),
+            'entities': {'dates': [], 'money': [], 'orgs': []}
         }
         
         for token in doc:
-            # 1. Wykrywanie NEGACJI (Dependency Parsing)
-            if token.dep_ == "neg" or token.lemma_ in self.power_words['NEGATION']:
-                target = token.head.lemma_ if token.dep_ == "neg" else "context"
-                features['negations'].append(f"{token.lemma_} ({target})")
-            
-            # 2. Wykrywanie STRONY BIERNEJ (Passive Voice)
-            # W spacy: auxpass (posiłkowy strony biernej) + czasownik w formie participle
+            low_lemma = token.lemma_.lower()
+            if token.dep_ == "neg" or low_lemma in self.power_words['NEGATION']:
+                features['negations'].append(f"{low_lemma} ({token.head.lemma_})")
             if token.dep_ == "auxpass":
-                verb = token.head.lemma_
-                features['passive_voice'].append(f"is/was {verb}")
-            
-            # 3. Klasyfikacja MODALNOŚCI
-            if token.lemma_ in self.power_words['MODAL_MUST']:
-                features['modals_must'].append(token.lemma_)
-            elif token.lemma_ in self.power_words['MODAL_MAY']:
-                features['modals_may'].append(token.lemma_)
+                features['passive_voice'].append(f"{token.lemma_} {token.head.lemma_}")
+            if low_lemma in self.power_words['MODAL_MUST']: features['modals_must'].append(low_lemma)
+            if low_lemma in self.power_words['MODAL_MAY']: features['modals_may'].append(low_lemma)
+            if low_lemma in self.power_words['EXCEPTIONS']: features['exceptions'].append(low_lemma)
+            if low_lemma in self.power_words['SENSITIVE_DATA']: features['privacy_risks'].append(low_lemma)
+        for ent in doc.ents:
+            if ent.label_ == "DATE": features['entities']['dates'].append(ent.text)
+            elif ent.label_ == "MONEY": features['entities']['money'].append(ent.text)
+            elif ent.label_ == "ORG": features['entities']['orgs'].append(ent.text)
                 
         return features
 
-    def compare_paragraphs(self, p_old, p_new):
-        """Zwraca różnice między dwoma akapitami."""
-        f_old = self.extract_legal_features(p_old)
-        f_new = self.extract_legal_features(p_new)
-        
-        diffs = []
-        if len(f_old['negations']) != len(f_new['negations']):
-            diffs.append(f"NEGATION CHANGE: {f_old['negations']} -> {f_new['negations']}")
-        
-        if f_old['modals_must'] and not f_new['modals_must'] and f_new['modals_may']:
-            diffs.append("MODAL SHIFT: Obligation loosened to permission (must -> may).")
-        
-        if not f_old['passive_voice'] and f_new['passive_voice']:
-            diffs.append(f"STYLE CHANGE: Passive voice introduced ({f_new['passive_voice']}) - obscures responsibility.")
-            
-        return diffs, f_old, f_new
+    def calculate_risk_score(self, features):
+        """Zwraca wynik ryzyka od 0 do 100."""
+        score = 0
+        score += len(features['negations']) * 15
+        score += len(features['modals_must']) * 10
+        score += len(features['passive_voice']) * 5
+        score += len(features['exceptions']) * 12
+        score += len(set(features['privacy_risks'])) * 25
 
-def load_paragraphs(file_path):
-    """Wczytuje plik i dzieli na akapity (zakładając podwójną nową linię)."""
-    if not os.path.exists(file_path):
-        return []
-    with open(file_path, 'r', encoding='utf-8') as f:
-        # Dzielimy po \n\n i czyścimy z pustych linii oraz spacji
-        content = f.read().split('\n\n')
-        return [p.strip() for p in content if len(p.strip()) > 20] # ignorujemy bardzo krótkie śmieci
-
-# --- GŁÓWNY SKRYPT ANALIZUJĄCY ---
-if __name__ == "__main__":
-    engine = NLPEngine()
-    
-    # Ścieżki do Twoich plików
-    path_2010 = "fb_privacy_policy_2010.txt"
-    path_2015 = "fb_privacy_policy_2015.txt"
-    
-    paras_2010 = load_paragraphs(path_2010)
-    paras_2015 = load_paragraphs(path_2015)
-    
-    print(f"Loaded {len(paras_2010)} paragraphs from 2010")
-    print(f"Loaded {len(paras_2015)} paragraphs from 2015\n")
-
-    # Proste dopasowanie (na razie 1 do 1, dopóki Osoba B nie zrobi Matchera)
-    limit = min(len(paras_2010), len(paras_2015))
-    
-    for i in range(limit):
-        p_old = paras_2010[i]
-        p_new = paras_2015[i]
-        
-        diffs, f1, f2 = engine.compare_paragraphs(p_old, p_new)
-        
-        if diffs:
-            print(f"--- Paragraph #{i+1} Significant Changes ---")
-            print(f"OLD: {p_old[:100]}...")
-            print(f"NEW: {p_new[:100]}...")
-            for d in diffs:
-                print(f"  🚨 {d}")
-            print("\n")
+        if features['readability'] > 40: score += 15
+        if features['modals_may'] and features['privacy_risks']:score += 20
+        return min(score, 100)
