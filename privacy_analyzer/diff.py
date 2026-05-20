@@ -51,6 +51,8 @@ class SectionDiff:
     n_removed: int = 0
     n_rephrased: int = 0
     n_unchanged: int = 0
+    old_text: str = ""
+    new_text: str = ""
 
 
 def _sent_level_diff(
@@ -133,6 +135,8 @@ def compute_section_diff(
         new_title=new_sec.title,
         year_old=year_old,
         year_new=year_new,
+        old_text=" ".join(old_sec.sentences),
+        new_text=" ".join(new_sec.sentences),
     )
 
     # distance_score
