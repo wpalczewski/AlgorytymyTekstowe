@@ -43,7 +43,7 @@ python -m privacy_analyzer analyze data/policies/fb_2010.txt data/policies/fb_20
 python -m privacy_analyzer analyze *.txt --config config.yaml --opp-csv data/multilabel_opp115.csv --output-dir out/
 ```
 
-Rok wykrywany z nazwy pliku (szuka 4 cyfr). Konwencja: `<nazwa>_<rok>.txt` lub `<nazwa><rok>.txt`.
+Rok wykrywany z nazwy pliku (4 cyfry, ewentualnie 2 cyfry normalizowane do 20XX). Konwencja: `<nazwa>_<rok>.txt` lub `<nazwa><rok>.txt`.
 
 ### Streamlit dashboard
 
@@ -55,10 +55,18 @@ Wgraj pliki .txt w panelu bocznym → Analyze.
 
 ## Dane
 
-- `data/policies/` — symlinki do plików w `data/`:
+- `data/policies/`:
   - `fb_2010.txt`, `fb_2015.txt` — polityki prywatności Facebook
-  - `tiktok_20.txt`, `tiktok_21.txt` — polityki TikTok
-- `data/multilabel_opp115.csv` — symlink do zbioru OPP-115 (1748 próbek, 12 kategorii), używany do trenowania klasyfikatora segmentacji B
+  - `tiktok_2020.txt`, `tiktok_2021.txt` — polityki prywatności TikTok (wersja US, pobrane z archive.org: snapshoty 2020-06-11 i 2021-08-01)
+- `data/multilabel_opp115.csv` — zbiór OPP-115 (1748 próbek, 12 kategorii), używany do trenowania klasyfikatora segmentacji B
+
+## Testy
+
+```bash
+python -m pytest tests/
+```
+
+Testy używają lekkiego fake-encodera (bag-of-words) i blank spaCy z sentencizerem — działają szybko i offline, bez pobierania modeli.
 
 ## Konfiguracja
 
@@ -78,8 +86,9 @@ privacy_analyzer/
   app.py            # Streamlit dashboard
   __main__.py
 data/
-  policies/         # symlinki do .txt polityk
-  multilabel_opp115.csv  # symlink do OPP-115
+  policies/         # .txt polityk (fb_2010, fb_2015, tiktok_2020, tiktok_2021)
+  multilabel_opp115.csv  # zbiór OPP-115
+tests/              # pytest (segmentacja, matching, diff, CLI)
 out/                # wyjście (ignorowane przez git)
 config.yaml
 requirements.txt

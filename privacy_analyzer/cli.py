@@ -6,15 +6,21 @@ Parsuje nazwy plików żeby wyciągnąć rok (szuka 4 cyfr w nazwie).
 
 from __future__ import annotations
 import argparse
-import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 
 
 def _extract_year(filename: str) -> str:
     m = re.search(r"(20\d{2}|19\d{2}|\d{2})", Path(filename).stem)
-    return m.group(1) if m else Path(filename).stem
+    if not m:
+        return Path(filename).stem
+    year = m.group(1)
+    # znormalizuj 2-cyfrowy rok do 20XX, żeby sortowanie stringów było chronologiczne
+    if len(year) == 2:
+        year = "20" + year
+    return year
 
 
 def _load_models(cfg_path: str):
@@ -29,7 +35,7 @@ def _load_models(cfg_path: str):
         nlp = spacy.load(cfg["model"]["spacy"])
     except OSError:
         print(f"Instaluję model spaCy {cfg['model']['spacy']}...")
-        os.system(f"python -m spacy download {cfg['model']['spacy']}")
+        subprocess.run([sys.executable, "-m", "spacy", "download", cfg["model"]["spacy"]], check=True)
         nlp = spacy.load(cfg["model"]["spacy"])
 
     encoder = SentenceTransformer(cfg["model"]["sentence_transformer"])
