@@ -1,0 +1,50 @@
+model:
+  sentence_transformer: "all-MiniLM-L6-v2"
+  spacy: "en_core_web_sm"
+  opp115_csv: "data/multilabel_opp115.csv"
+
+segmentation:
+  # Heurystyka strukturalna (strategia A)
+  max_heading_len: 80          # linia krótsza niż N znaków może być nagłówkiem
+  section_separators:
+    - "Return to top"
+    - "Back to top"
+    - "---"
+  # Strategia B — OPP-115 classifier
+  category_window: 3           # ile zdań z rzędu tej samej kategorii = nowa sekcja
+  # Strategia C — TextTiling fallback
+  texttiling_w: 20             # rozmiar okna
+  texttiling_k: 10             # rozmiar bloku
+
+matching:
+  section_title_weight: 2.0    # waga tytułu przy uśrednianiu embeddingów sekcji
+  min_similarity: 0.45         # poniżej = sekcja "nowa" lub "usunięta"
+
+diff:
+  # sentence-level diff progi
+  unchanged_threshold: 0.85
+  rephrased_threshold: 0.50
+  # change magnitude — wagi składowych (suma = 1.0)
+  weights:
+    distance_score: 0.35
+    length_delta: 0.10
+    new_sentences_ratio: 0.25
+    removed_sentences_ratio: 0.15
+    category_drift: 0.15
+
+classifier:
+  tfidf_max_features: 2500
+  tfidf_ngram_range: [1, 2]
+  logistic_max_iter: 1000
+  prediction_threshold: 0.35   # próg pewności multilabel (proba >= threshold → etykieta)
+
+risk:
+  # Wagi z nlp_engine.py V1 — do kalibracji
+  negation_weight: 15
+  modal_must_weight: 10
+  passive_voice_weight: 5
+  exception_weight: 12
+  sensitive_data_weight: 25
+  readability_penalty_threshold: 40
+  readability_penalty: 15
+  modal_may_plus_sensitive_bonus: 20
